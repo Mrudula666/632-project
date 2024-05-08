@@ -3,9 +3,9 @@ title: "Logistic Regression Analysis for Exoplanet_dataset and Cross-validation"
 author: "Nimmala Mrudula, Sowmya Sree Kemsaram, Sreenivas Annagiri, Shreyas Shivaji Mali"
 date: "2024-04-29"
 output:
-  word_document: default
-  html_document: default
   pdf_document: default
+  html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -35,7 +35,7 @@ library(tidyr)
 
 
 # List of specific planet names
-target_planets <- c("Kepler-1090 b", "Kepler-1380 c", "Kepler-141 b", "Kepler-1452 b","Kepler-507 b", "Kepler-544 b", "Kepler-606 b", "Kepler-1652 c","Kepler-7101 b", "TOI-700 b") 
+target_planets <- c("Kepler-1090 b", "Kepler-1360 b", "Kepler-141 b", "Kepler-1452 b","Kepler-1507 b", "Kepler-1544 b", "Kepler-1606 b", "Kepler-163 c","Kepler-1652 b","Kepler-1701 b", "Kepler-283 c","Kepler-442 b", "Kepler-443 b","Kepler-705 b", "Kepler-712 c", "TOI-700 b" ) 
 
 filtered_data <- exoplanet_data %>%
   filter(pl_name %in% target_planets) %>%
