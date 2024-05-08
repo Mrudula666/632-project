@@ -147,11 +147,13 @@ cor_matrix
 
 vars_to_remove_corelation_vif <- c("sy_snum", "pl_orbper", "pl_radj", "pl_bmassj", "pl_dens", "pl_bmassprov", "sy_gaiamagerr2", "decstr","rastr","st_logg", "pl_name","hostname", "sy_kmag", "disc_telescope", "disc_facility", "sy_gaiamag")
 
-vars_to_remove_backward <- c("sy_snum", "pl_orbper", "pl_radj", "pl_bmassj", "pl_dens", "pl_bmassprov", "sy_gaiamagerr2", "decstr","rastr","st_logg", "pl_name","hostname", "sy_kmag", "disc_telescope", "disc_facility", "sy_gaiamag", "sy_pnum","ttv_flag","sy_snum","ra","dec","st_lum","st_mass","pl_bmasse")
+vars_to_remove_backward <- c("sy_snum", "pl_orbper", "pl_radj", "pl_bmassj", "pl_dens", "pl_bmassprov", "sy_gaiamagerr2", "decstr","rastr","st_logg", "pl_name","hostname", "sy_kmag", "disc_telescope", "disc_facility", "sy_gaiamag", "sy_pnum","ttv_flag","ra","dec","st_lum","st_mass","pl_bmasse")
+                             
+                             #"sy_pnum","ttv_flag","ra","dec","st_lum","st_mass","pl_bmasse")
 
 
 # Remove one variable from each pair of highly correlated variables
-exoplanet_data_reduced <- exoplanet_data[, !colnames(exoplanet_data) %in% vars_to_remove_corelation_vif]
+exoplanet_data_reduced <- exoplanet_data[, !colnames(exoplanet_data) %in% vars_to_remove_backward]
 
 
 
