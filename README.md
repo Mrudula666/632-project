@@ -55,8 +55,5 @@ This repository contains a comprehensive analysis of the exoplanet dataset to de
 - Random Forest provides an alternative method with significant feature importance insights.
 - Lasso Regression helps refine the model by avoiding overfitting through feature selection.
 
-## License
-
-This repository is licensed under the MIT License.
 
 
