@@ -1,0 +1,435 @@
+---
+title: "Assumptions"
+author: "Nimmala Mrudula, Sowmya Sree Kemsaram, Sreenivas Annagiri, Shreyas Shivaji Mali"
+date: "2024-04-29"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## LOAD THE DATA
+
+```{r cars}
+# Load necessary libraries
+library(tidyverse)
+library(caret)
+
+# Read the dataset
+exoplanet_data <- read.csv('Exoplanet_DataSet.csv')
+
+
+## Planet equity, pl_orbsMax and P
+
+```
+
+```{r}
+# Load necessary libraries
+library(ggplot2)
+
+# Adjust the plotting window size
+quartz(width = 15, height = 10)
+
+# Define the features you want to compare against density
+features <- c('st_mass', 'st_lum', 'st_teff', 'pl_bmasse', 'pl_rade', 'sy_kmag', 'grav_acc', 'pl_orbsmax', 'pl_orbper')
+
+# Determine the number of plots per row and number of rows
+num_plots_per_line <- 3
+num_features <- length(features)
+num_rows <- ceiling(num_features / num_plots_per_line)
+
+par(mfrow = c(num_rows, num_plots_per_line), mar = c(4, 4, 2, 1)) 
+
+
+# Save the plots to a PNG file
+png("density_vs_features.png", width = 2000, height = 1200, res = 200)
+
+# Create the plots
+par(mfrow = c(num_rows, num_plots_per_line), mar = c(4, 4, 2, 1))
+for (feature in features) {
+  plot(
+    exoplanet_data$pl_dens, exoplanet_data[[feature]],
+    xlab = 'Planet Density (g/cm³)',
+    ylab = feature,
+    main = paste('Planet Density vs.', feature),
+    pch = 19,
+    col = rgb(0.2, 0.4, 0.6, 0.5),
+    cex = 0.8
+  )
+  grid()
+}
+
+dev.off()
+
+
+```
+
+```{r}
+library(tidyverse)
+library(naniar)
+
+# Identify columns with missing values
+missing_data_columns <- colnames(exoplanet_data)[colSums(is.na(exoplanet_data)) > 0]
+
+# Filter only those columns and visualize their missing values
+exoplanet_data_with_missing <- exoplanet_data[, missing_data_columns]
+
+# Inspect columns with missing values
+print(missing_data_columns)
+
+
+# Conditional clustering based on the number of columns with missing values
+if (length(missing_data_columns) > 1) {
+    vis_miss(exoplanet_data_with_missing, cluster = TRUE)
+} else {
+    vis_miss(exoplanet_data_with_missing, cluster = FALSE)
+}
+
+```
+
+## Filter Variables Based on Missing Values
+
+```{r pressure, echo=FALSE}
+
+# Convert eligible columns to factors
+categorical_columns <- c('pl_name', 'hostname', 'disc_facility', 'disc_telescope', 'pl_bmassprov', 'ttv_flag')
+
+exoplanet_data[categorical_columns] <- lapply(exoplanet_data[categorical_columns], as.factor)
+
+# Exclude 'st_spectype' from the dataset and filter out columns with more than 297 missing values in a single step
+exoplanet_data <- exoplanet_data[, !colnames(exoplanet_data) %in% "st_spectype" & colSums(is.na(exoplanet_data)) <= 765]
+
+# Return the structure of the data to confirm changes
+str(exoplanet_data)
+
+```
+
+## Preprocess the Data
+
+```{r}
+
+exoplanet_data <- na.omit(exoplanet_data)
+exoplanet_data$in_habitual_zone <- with(exoplanet_data, ifelse(pl_orbsmax > 0.9 & pl_orbsmax < 1.5, 1, 0))
+
+```
+
+## Full_model
+
+```{r}
+
+
+library(car)
+full_model <- glm(in_habitual_zone ~ ., data = exoplanet_data)
+summary(full_model)
+
+```
+
+## Calculating Correlation matrix
+
+```{r}
+
+# Calculate correlation matrix
+cor_matrix <- cor(exoplanet_data[, sapply(exoplanet_data, is.numeric)], use = "complete.obs")
+cor_matrix
+
+
+```
+
+## Reduced variables based on the Correlation matrix
+
+```{r}
+
+# Variables to remove based on low correlation with target
+
+vars_to_remove_corelation_vif <- c("sy_snum", "pl_orbper", "pl_radj", "pl_bmassj", "pl_dens", "pl_bmassprov", "sy_gaiamagerr2", "decstr","rastr","st_logg", "pl_name","hostname", "sy_kmag", "disc_telescope", "disc_facility", "sy_gaiamag")
+
+vars_to_remove_backward <- c("sy_snum", "pl_orbper", "pl_radj", "pl_bmassj", "pl_dens", "pl_bmassprov", "sy_gaiamagerr2", "decstr","rastr","st_logg", "pl_name","hostname", "sy_kmag", "disc_telescope", "disc_facility", "sy_gaiamag", "sy_pnum","ttv_flag","sy_snum","ra","dec","st_lum","st_mass","pl_bmasse")
+
+
+# Remove one variable from each pair of highly correlated variables
+exoplanet_data_reduced <- exoplanet_data[, !colnames(exoplanet_data) %in% vars_to_remove_corelation_vif]
+
+
+
+# Fit the linear model without the highly correlated variables
+model_reduced <- glm(in_habitual_zone ~ ., data = exoplanet_data_reduced, family = binomial(logit))
+summary(model_reduced)
+```
+
+```{r warning=FALSE, message=FALSE}
+# Use GGally package for an enhanced scatterplot matrix
+library(GGally)
+pairs(exoplanet_data_reduced[, sapply(exoplanet_data_reduced, is.numeric)])
+
+```
+
+### VIF
+
+```{r}
+library(car)
+vif_model <- vif(model_reduced)
+print(vif_model)
+```
+
+### Goodness-Of-Fit
+
+```{r}
+# Install and load the required package
+if(!require("ResourceSelection")) install.packages("ResourceSelection", dependencies=TRUE)
+library(ResourceSelection)
+
+# Perform the test
+hoslem.test(model_reduced$y, fitted(model_reduced), g = 10) 
+```
+
+## Training and Testing Data
+
+```{r}
+
+library(caret)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Define the train/test split (70% train, 20% test)
+n <- nrow(exoplanet_data_reduced)
+train_indices <- sample(1:n, size = floor(0.7 * n))
+
+
+
+# Training and testing datasets
+train_data <- exoplanet_data_reduced[train_indices, ]
+test_data <- exoplanet_data_reduced[-train_indices, ]
+
+
+```
+
+## Cross-validation
+
+```{r}
+
+library('caret')
+
+
+predictions  <-  predict(model_reduced, newdata = test_data, type = "response")
+
+# Assuming `predictions` contain the probabilities from your logistic regression model
+predicted_classes <- ifelse(predictions > 0.5, 1, 0)
+
+# Convert predicted classes to a factor (important for some of caret's functions)
+predicted_classes <- factor(predicted_classes, levels = c(0, 1))
+
+# Ensure the actual outcomes are also a factor
+actual_classes <- factor(test_data$in_habitual_zone, levels = c(0, 1))
+
+# Create the confusion matrix
+conf_matrix <- confusionMatrix(predicted_classes, actual_classes)
+print(conf_matrix)
+
+
+```
+
+## Accuracy
+
+```{r}
+accuracy <- sum(diag(conf_matrix$table)) / sum(conf_matrix$table)
+print(paste("Accuracy:", accuracy))
+```
+
+## ROC Curve
+
+```{r}
+library(pROC)
+# Create the ROC object from pROC
+roc_obj <- roc(test_data$in_habitual_zone, predictions)
+
+# Plot the ROC curve
+plot(roc_obj, main = "ROC Curve for Reduced Logistic Regression", col = "#1c61b6", lwd = 2)
+
+# Optionally, add text to show the AUC on the plot
+auc_value <- auc(roc_obj)
+text(0.6, 0.2, paste("AUC =", round(auc_value, 2)), cex = 1.2)
+# Optionally, add a horizontal line at 0 on the x-axis (False Positive Rate)
+abline(v = 0, col = "gray", lty = 2)
+# Calculate the AUC and print it
+auc_value <- auc(roc_obj)
+
+```
+
+# RANDOM-FOREST APPROACH
+
+```{r}
+library(randomForest)
+
+
+# Make sure that the target variable in the training set is a factor
+train_data$in_habitual_zone <- as.factor(train_data$in_habitual_zone)
+
+# Verify that the test dataset has the same type for the target variable
+test_data$in_habitual_zone <- as.factor(test_data$in_habitual_zone)
+
+# Set a seed for reproducibility
+set.seed(123)
+
+# Fit a Random Forest model using the training data
+rf_model <- randomForest(in_habitual_zone ~ ., data = train_data, ntree = 500, importance = TRUE)
+
+# Print a summary of the Random Forest model
+print(rf_model)
+```
+
+```{r}
+
+
+
+# Predict using the Random Forest model on the test data
+rf_predictions <- predict(rf_model, newdata = test_data)
+
+
+# Assuming `predictions` contain the probabilities from your logistic regression model
+rf_predicted_classes <- ifelse(predictions > 0.8, 1, 0)
+
+# Convert predicted classes to a factor (important for some of caret's functions)
+rf_predicted_classes <- factor(predicted_classes, levels = c(0, 1))
+
+# Ensure the actual outcomes are also a factor
+actual_classes <- factor(test_data$in_habitual_zone, levels = c(0, 1))
+
+# Create a confusion matrix for the Random Forest predictions
+rf_conf_matrix <- confusionMatrix(rf_predicted_classes, actual_classes)
+
+# Print the confusion matrix
+print(rf_conf_matrix)
+```
+
+```{r}
+# Calculate and print the accuracy
+rf_accuracy <- sum(diag(rf_conf_matrix$table)) / sum(rf_conf_matrix$table)
+print(paste("Random Forest Accuracy:", rf_accuracy))
+
+# Plot the importance of variables in the Random Forest model
+varImpPlot(rf_model)
+```
+
+```{r}
+
+
+
+## ROC Curve for Random Forest
+# Calculate probabilities for ROC curve
+rf_prob <- predict(rf_model, newdata = test_data, type = "prob")[, 2]
+
+# Create the ROC object using pROC
+rf_roc_obj <- roc(test_data$in_habitual_zone, rf_prob)
+
+rf_roc_obj
+```
+
+```{r}
+# Plot the ROC curve
+plot(rf_roc_obj, main = "ROC Curve for Random Forest", col = "#FF0000", lwd = 2)
+
+# Optionally, add text to show the AUC on the plot
+rf_auc_value <- auc(rf_roc_obj)
+text(0.6, 0.2, paste("AUC =", round(rf_auc_value, 3)), cex = 1.2)
+```
+
+## LASSO BEST-FIT
+
+```{r}
+library(glmnet)
+
+# Prepare the predictor matrix
+x <- model.matrix(in_habitual_zone ~ . - 1, data = train_data)  
+
+# Ensure the response is a factor if it's not already
+y <- as.factor(train_data$in_habitual_zone)
+
+# Fit Lasso model using cross-validation
+cv_fit <- cv.glmnet(x, y, family = "binomial", alpha = 1) 
+
+# Plot to see the lambda selection
+plot(cv_fit)
+```
+
+## LASSO BEST FIT - Lasso Coeffecients
+
+```{r}
+# Get the best lambda and coefficients
+best_lambda <- cv_fit$lambda.min
+lasso_coefficients <- coef(cv_fit, s = "lambda.min")
+
+# Print coefficients
+print(lasso_coefficients)
+
+```
+
+## Confusion Matrix for LASSO-FIT
+
+```{r}
+# Generate predictions for the test set
+x_test <- model.matrix(in_habitual_zone ~ . - 1, data = test_data)
+predictions <- predict(cv_fit, newx = x_test, s = "lambda.min", type = "response")
+
+# Convert probabilities to binary output based on a threshold (e.g., 0.5)
+predicted_classes <- ifelse(predictions > 0.5, 1, 0)
+
+# Create confusion matrix
+confusion_matrix <- table(Predicted = predicted_classes, Actual = test_data$in_habitual_zone)
+print(confusion_matrix)
+
+
+# Calculate accuracy
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy:", accuracy))
+
+# Calculate specificity
+true_negatives <- confusion_matrix[1, 1]
+total_actual_negatives <- sum(confusion_matrix[, 1])
+specificity <- true_negatives / total_actual_negatives
+print(paste("Specificity:", specificity))
+
+# Calculate sensitivity
+true_positives <- confusion_matrix[2, 2]
+total_actual_positives <- sum(confusion_matrix[, 2])
+sensitivity <- true_positives / total_actual_positives
+print(paste("Sensitivity:", sensitivity))
+
+```
+
+## ACCURACY for LASSO-FIT
+
+```{r}
+accuracy <- sum(diag(confusion_matrix)) / sum(confusion_matrix)
+print(paste("Accuracy:", accuracy))
+```
+
+## ROC curve For LASSO
+
+```{r}
+
+library(pROC)
+# Generate the ROC curve using the actual labels and predicted probabilities
+roc_obj <- roc(response = as.factor(test_data$in_habitual_zone), predictor = predictions, levels = c("0", "1"))
+
+# Plot the ROC curve
+plot(roc_obj, main = "ROC Curve for Logistic Regression Using Lasso Fit", col = "#1c61b6", lwd = 2)
+
+# Optionally, add text to show the AUC on the plot
+auc_value <- auc(roc_obj)
+text(0.6, 0.2, paste("AUC =", round(auc_value, 2)), border = "black", cex = 1.2)
+
+# Calculate the AUC and print it
+auc_value <- auc(roc_obj)
+```
+
+```{r}
+# Calculate AUC and print it
+auc_value <- auc(roc_obj)
+print(paste("Area Under the Curve (AUC):", round(auc_value, 2)))
+
+```
