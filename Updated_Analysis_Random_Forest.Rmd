@@ -1,11 +1,11 @@
 ---
-title: "Assumptions"
+title: "Logistic Regression Analysis for Exoplanet_dataset and Cross-validation"
 author: "Nimmala Mrudula, Sowmya Sree Kemsaram, Sreenivas Annagiri, Shreyas Shivaji Mali"
 date: "2024-04-29"
 output:
-  pdf_document: default
-  html_document: default
   word_document: default
+  html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -23,50 +23,43 @@ library(caret)
 exoplanet_data <- read.csv('Exoplanet_DataSet.csv')
 
 
-## Planet equity, pl_orbsMax and P
-
 ```
+
+## Plot for the Exoplanet_data
 
 ```{r}
 # Load necessary libraries
 library(ggplot2)
-
-# Adjust the plotting window size
-quartz(width = 15, height = 10)
-
-# Define the features you want to compare against density
-features <- c('st_mass', 'st_lum', 'st_teff', 'pl_bmasse', 'pl_rade', 'sy_kmag', 'grav_acc', 'pl_orbsmax', 'pl_orbper')
-
-# Determine the number of plots per row and number of rows
-num_plots_per_line <- 3
-num_features <- length(features)
-num_rows <- ceiling(num_features / num_plots_per_line)
-
-par(mfrow = c(num_rows, num_plots_per_line), mar = c(4, 4, 2, 1)) 
+library(dplyr)
+library(tidyr)
 
 
-# Save the plots to a PNG file
-png("density_vs_features.png", width = 2000, height = 1200, res = 200)
+# List of specific planet names
+target_planets <- c("Kepler-1090 b", "Kepler-1380 c", "Kepler-141 b", "Kepler-1452 b","Kepler-507 b", "Kepler-544 b", "Kepler-606 b", "Kepler-1652 c","Kepler-7101 b", "TOI-700 b") 
 
-# Create the plots
-par(mfrow = c(num_rows, num_plots_per_line), mar = c(4, 4, 2, 1))
-for (feature in features) {
-  plot(
-    exoplanet_data$pl_dens, exoplanet_data[[feature]],
-    xlab = 'Planet Density (g/cm³)',
-    ylab = feature,
-    main = paste('Planet Density vs.', feature),
-    pch = 19,
-    col = rgb(0.2, 0.4, 0.6, 0.5),
-    cex = 0.8
-  )
-  grid()
-}
+filtered_data <- exoplanet_data %>%
+  filter(pl_name %in% target_planets) %>%
+  arrange('pl_eqt') %>%
+  mutate(planet_Name = factor(pl_name, levels = pl_name))
 
-dev.off()
+# Create the ggplot object
+p <- ggplot(filtered_data, aes(x = pl_name)) +
+  # Add bar plot for equilibrium temperature
+  geom_bar(aes(y = pl_eqt), stat = "identity", fill = "skyblue", alpha = 0.7) +
+  scale_y_continuous(name = "Planet Equilibrium Temperature (pl_eqt)",
+                     sec.axis = sec_axis(~ ., name = "Planet Orbital Semi-Major Axis (pl_orbsmax)")) +
+  # Add line plot for orbital semi-major axis
+  geom_line(aes(y = pl_orbsmax * max(pl_eqt) / max(pl_orbsmax)), color = "red", group = 1) +
+  geom_point(aes(y = pl_orbsmax * max(pl_eqt) / max(pl_orbsmax)), color = "red") +
+  labs(title = "Planets in Ascending Order of Equilibrium Temperature",
+       x = "Planet Name") +
+  theme_minimal()
 
-
+# Print the plot
+print(p)
 ```
+
+
 
 ```{r}
 library(tidyverse)
@@ -219,7 +212,6 @@ library('caret')
 
 predictions  <-  predict(model_reduced, newdata = test_data, type = "response")
 
-# Assuming `predictions` contain the probabilities from your logistic regression model
 predicted_classes <- ifelse(predictions > 0.5, 1, 0)
 
 # Convert predicted classes to a factor (important for some of caret's functions)
@@ -331,14 +323,6 @@ rf_roc_obj <- roc(test_data$in_habitual_zone, rf_prob)
 rf_roc_obj
 ```
 
-```{r}
-# Plot the ROC curve
-plot(rf_roc_obj, main = "ROC Curve for Random Forest", col = "#FF0000", lwd = 2)
-
-# Optionally, add text to show the AUC on the plot
-rf_auc_value <- auc(rf_roc_obj)
-text(0.6, 0.2, paste("AUC =", round(rf_auc_value, 3)), cex = 1.2)
-```
 
 ## LASSO BEST-FIT
 
@@ -435,3 +419,4 @@ auc_value <- auc(roc_obj)
 print(paste("Area Under the Curve (AUC):", round(auc_value, 2)))
 
 ```
+
