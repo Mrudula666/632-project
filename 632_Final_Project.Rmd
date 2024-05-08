@@ -3,8 +3,8 @@ title: "Logistic Regression Analysis for Exoplanet_dataset and Cross-validation"
 author: "Nimmala Mrudula, Sowmya Sree Kemsaram, Sreenivas Annagiri, Shreyas Shivaji Mali"
 date: "2024-04-29"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
   word_document: default
 ---
 
